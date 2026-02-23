@@ -1,12 +1,10 @@
-name: Multi-Source Sync
+name: Multi-Source Sync Test
 
 permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: "0 0 * * *" # 每天 UTC 0点运行
-  workflow_dispatch:
+  workflow_dispatch: # 手动触发
 
 jobs:
   sync_multi_sources:
@@ -18,12 +16,7 @@ jobs:
       - name: Sync Multiple Sources
         run: |
           # ==========================================================
-          # 【多任务配置区域】
-          # 支持添加多个任务，从不同仓库拉取不同文件/文件夹
-          # source_repo: 源仓库 (格式: 用户名/仓库名)
-          # source_branch: 分支 (默认 main)
-          # source_path: 源路径 (文件夹或文件)
-          # dest_path: 目标路径 (你仓库里的路径)
+          # 【测试配置】真实的仓库测试数据
           # ==========================================================
           SYNC_TASKS='[
             {
@@ -61,40 +54,44 @@ jobs:
             # 生成唯一临时目录
             TEMP_DIR="/tmp/sync_$(echo "$SRC_REPO" | md5sum | head -c 10)"
             
-            # 克隆源仓库 (稀疏检出，只下载需要的文件)
+            # 克隆源仓库 (稀疏检出)
             rm -rf "$TEMP_DIR"
             git clone --depth 1 --branch "$SRC_BRANCH" --filter=blob:none --sparse "https://github.com/$SRC_REPO" "$TEMP_DIR"
             
-            # 设置稀疏检出路径
+            # ==========================================
+            # 关键修复：使用 --no-cone 模式以支持单文件同步
+            # ==========================================
             pushd "$TEMP_DIR" > /dev/null
-            git sparse-checkout set "$SRC_PATH"
+            git sparse-checkout set --no-cone "$SRC_PATH"
             popd > /dev/null
             
             # 准备目标目录
             mkdir -p "$DEST_PATH"
             
-            # 同步文件
-            # rsync 参数说明:
-            # -a: 归档模式
-            # -v: 详细输出
-            # --delete: 如果源文件删了，目标也删除 (保持完全一致，如果不需要此功能可去掉)
-            # 结尾斜杠逻辑: 确保文件夹内容被正确复制
+            # 同步文件逻辑
             if [ -d "$TEMP_DIR/$SRC_PATH" ]; then
+                 # 如果是文件夹
+                 echo "  类型: 文件夹同步"
+                 # 确保目标文件夹存在
+                 mkdir -p "$DEST_PATH"
                  rsync -av --delete "$TEMP_DIR/$SRC_PATH/" "$DEST_PATH/"
             else
-                 # 如果是单文件同步
+                 # 如果是单文件
+                 echo "  类型: 单文件同步"
+                 # 获取目标目录路径
+                 PARENT_DIR=$(dirname "$DEST_PATH")
+                 mkdir -p "$PARENT_DIR"
                  rsync -av --delete "$TEMP_DIR/$SRC_PATH" "$DEST_PATH"
             fi
             
-            # 清理临时目录，确保不占用空间
+            # 清理临时目录
             rm -rf "$TEMP_DIR"
           done
 
           echo "------------------------------------------------"
           echo "▶ 检查并提交变更..."
           
-          # 检查是否有变更
-          # 注意：这里我们只 add 具体的目标目录，避免把当前目录下的配置文件提交上去
+          # 只 add 配置中指定的目标路径
           echo "$SYNC_TASKS" | jq -r '.[].dest_path' | while read -r path; do
              if [ -f "$path" ] || [ -d "$path" ]; then
                 git add "$path"
