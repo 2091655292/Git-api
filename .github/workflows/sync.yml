@@ -1,0 +1,117 @@
+name: Multi-Source Sync
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # 每天 UTC 0点运行
+  workflow_dispatch:
+
+jobs:
+  sync_multi_sources:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+
+      - name: Sync Multiple Sources
+        run: |
+          # ==========================================================
+          # 【多任务配置区域】
+          # 支持添加多个任务，从不同仓库拉取不同文件/文件夹
+          # source_repo: 源仓库 (格式: 用户名/仓库名)
+          # source_branch: 分支 (默认 main)
+          # source_path: 源路径 (文件夹或文件)
+          # dest_path: 目标路径 (你仓库里的路径)
+          # ==========================================================
+          SYNC_TASKS='[
+            {
+              "source_repo": "cmliu/edgetunnel",
+              "source_branch": "main",
+              "source_path": "README.md",
+              "dest_path": "docs/edgetunnel_readme.md"
+            },
+            {
+              "source_repo": "octocat/Hello-World",
+              "source_branch": "master",
+              "source_path": "README",
+              "dest_path": "external/hello-readme"
+            },
+            {
+              "source_repo": "vercel/next.js",
+              "source_branch": "canary",
+              "source_path": "examples",
+              "dest_path": "code-samples/nextjs-examples"
+            }
+          ]'
+          # ==========================================================
+
+          # 配置 Git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 解析 JSON 并循环处理每个任务
+          echo "$SYNC_TASKS" | jq -c '.[]' | while read -r task; do
+            # 读取配置
+            SRC_REPO=$(echo "$task" | jq -r '.source_repo')
+            SRC_BRANCH=$(echo "$task" | jq -r '.source_branch')
+            SRC_PATH=$(echo "$task" | jq -r '.source_path')
+            DEST_PATH=$(echo "$task" | jq -r '.dest_path')
+            
+            echo "------------------------------------------------"
+            echo "▶ 开始同步任务:"
+            echo "  源: $SRC_REPO ($SRC_BRANCH) -> $SRC_PATH"
+            echo "  目标: $DEST_PATH"
+            
+            # 生成唯一临时目录
+            TEMP_DIR="/tmp/sync_$(echo "$SRC_REPO" | md5sum | head -c 10)"
+            
+            # 克隆源仓库 (稀疏检出，只下载需要的文件)
+            rm -rf "$TEMP_DIR"
+            git clone --depth 1 --branch "$SRC_BRANCH" --filter=blob:none --sparse "https://github.com/$SRC_REPO" "$TEMP_DIR"
+            
+            # 设置稀疏检出路径
+            pushd "$TEMP_DIR" > /dev/null
+            git sparse-checkout set "$SRC_PATH"
+            popd > /dev/null
+            
+            # 准备目标目录
+            mkdir -p "$DEST_PATH"
+            
+            # 同步文件
+            # rsync 参数说明:
+            # -a: 归档模式
+            # -v: 详细输出
+            # --delete: 如果源文件删了，目标也删除 (保持完全一致，如果不需要此功能可去掉)
+            # 结尾斜杠逻辑: 确保文件夹内容被正确复制
+            if [ -d "$TEMP_DIR/$SRC_PATH" ]; then
+                 rsync -av --delete "$TEMP_DIR/$SRC_PATH/" "$DEST_PATH/"
+            else
+                 # 如果是单文件同步
+                 rsync -av --delete "$TEMP_DIR/$SRC_PATH" "$DEST_PATH"
+            fi
+            
+            # 清理临时目录，确保不占用空间
+            rm -rf "$TEMP_DIR"
+          done
+
+          echo "------------------------------------------------"
+          echo "▶ 检查并提交变更..."
+          
+          # 检查是否有变更
+          # 注意：这里我们只 add 具体的目标目录，避免把当前目录下的配置文件提交上去
+          echo "$SYNC_TASKS" | jq -r '.[].dest_path' | while read -r path; do
+             if [ -f "$path" ] || [ -d "$path" ]; then
+                git add "$path"
+             fi
+          done
+
+          if ! git diff --cached --quiet; then
+             echo "💾 发现变更，正在提交..."
+             git commit -m "chore: sync updates from upstream sources"
+             git push
+             echo "✅ 同步完成并已推送。"
+          else
+             echo "✅ 所有文件均无变化，无需提交。"
+          fi
