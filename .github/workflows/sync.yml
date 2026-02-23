@@ -16,22 +16,20 @@ jobs:
       - name: Sync Multiple Sources
         run: |
           # ==========================================================
-          # 【测试配置】已修正路径，确保真实存在
+          # 【多任务配置区域】
+          # 支持添加多个任务，从不同仓库拉取不同文件/文件夹
+          # source_repo: 源仓库 (格式: 用户名/仓库名)
+          # source_branch: 分支 (默认 main)
+          # source_path: 源路径 (文件夹或文件)
+          # dest_path: 目标路径 (你仓库里的路径)
           # ==========================================================
           SYNC_TASKS='[
             {
-              "source_repo": "actions/checkout",
+              "source_repo": "lingeringsound/adblock_auto",
               "source_branch": "main",
-              "source_path": "README.md",
-              "dest_path": "test_sync/checkout_readme.md"
+              "source_path": "Rules",
+              "dest_path": "adblock_auto/Rules"
             },
-            {
-              "source_repo": "actions/checkout",
-              "source_branch": "main",
-              "source_path": ".github",
-              "dest_path": "test_sync/checkout_workflows_folder"
-            }
-          ]'
           # ==========================================================
 
           # 配置 Git
