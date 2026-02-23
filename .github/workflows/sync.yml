@@ -27,22 +27,16 @@ jobs:
           # ==========================================================
           SYNC_TASKS='[
             {
-              "source_repo": "cmliu/edgetunnel",
+              "source_repo": "actions/checkout",
               "source_branch": "main",
               "source_path": "README.md",
-              "dest_path": "docs/edgetunnel_readme.md"
+              "dest_path": "test_sync/checkout_readme.md"
             },
             {
-              "source_repo": "octocat/Hello-World",
-              "source_branch": "master",
-              "source_path": "README",
-              "dest_path": "external/hello-readme"
-            },
-            {
-              "source_repo": "vercel/next.js",
-              "source_branch": "canary",
-              "source_path": "examples",
-              "dest_path": "code-samples/nextjs-examples"
+              "source_repo": "github/gitignore",
+              "source_branch": "main",
+              "source_path": "Python",
+              "dest_path": "test_sync/gitignore_python_folder"
             }
           ]'
           # ==========================================================
