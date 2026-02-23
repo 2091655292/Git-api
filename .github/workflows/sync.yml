@@ -16,7 +16,7 @@ jobs:
       - name: Sync Multiple Sources
         run: |
           # ==========================================================
-          # 【测试配置】真实的仓库测试数据
+          # 【测试配置】已修正路径，确保真实存在
           # ==========================================================
           SYNC_TASKS='[
             {
@@ -26,10 +26,10 @@ jobs:
               "dest_path": "test_sync/checkout_readme.md"
             },
             {
-              "source_repo": "github/gitignore",
+              "source_repo": "actions/checkout",
               "source_branch": "main",
-              "source_path": "Python",
-              "dest_path": "test_sync/gitignore_python_folder"
+              "source_path": ".github",
+              "dest_path": "test_sync/checkout_workflows_folder"
             }
           ]'
           # ==========================================================
@@ -58,13 +58,19 @@ jobs:
             rm -rf "$TEMP_DIR"
             git clone --depth 1 --branch "$SRC_BRANCH" --filter=blob:none --sparse "https://github.com/$SRC_REPO" "$TEMP_DIR"
             
-            # ==========================================
-            # 关键修复：使用 --no-cone 模式以支持单文件同步
-            # ==========================================
+            # 设置稀疏检出路径 (支持单文件)
             pushd "$TEMP_DIR" > /dev/null
             git sparse-checkout set --no-cone "$SRC_PATH"
             popd > /dev/null
             
+            # ==========================================
+            # 【健壮性修复】检查源文件是否存在
+            # ==========================================
+            if [ ! -e "$TEMP_DIR/$SRC_PATH" ]; then
+              echo "::error:: ❌ 错误：在源仓库中未找到路径 '$SRC_PATH'。请检查配置中的 source_path 是否正确（注意大小写和后缀名）。"
+              exit 1
+            fi
+
             # 准备目标目录
             mkdir -p "$DEST_PATH"
             
@@ -72,13 +78,10 @@ jobs:
             if [ -d "$TEMP_DIR/$SRC_PATH" ]; then
                  # 如果是文件夹
                  echo "  类型: 文件夹同步"
-                 # 确保目标文件夹存在
-                 mkdir -p "$DEST_PATH"
                  rsync -av --delete "$TEMP_DIR/$SRC_PATH/" "$DEST_PATH/"
             else
                  # 如果是单文件
                  echo "  类型: 单文件同步"
-                 # 获取目标目录路径
                  PARENT_DIR=$(dirname "$DEST_PATH")
                  mkdir -p "$PARENT_DIR"
                  rsync -av --delete "$TEMP_DIR/$SRC_PATH" "$DEST_PATH"
