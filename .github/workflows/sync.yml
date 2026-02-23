@@ -29,7 +29,8 @@ jobs:
               "source_branch": "main",
               "source_path": "Rules",
               "dest_path": "adblock_auto/Rules"
-            },
+            }
+            ],
           # ==========================================================
 
           # 配置 Git
