@@ -2,6 +2,7 @@ name: Append Sync Config
 
 permissions:
   contents: write
+  workflows: write  # 【关键修复】添加此权限，允许修改 workflow 文件
 
 on:
   workflow_dispatch:
@@ -49,6 +50,7 @@ jobs:
               content = f.read()
 
           # 2. 正则匹配
+          # 兼容单引号后紧跟换行符或空格的情况
           pattern = r"(# === SYNC_CONFIG_START ===\s*SYNC_TASKS=')(.*?)('\s*# === SYNC_CONFIG_END ===)"
           match = re.search(pattern, content, re.DOTALL)
 
@@ -108,10 +110,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 【关键修复】直接使用表达式获取文件名，避免环境变量丢失
-          # 注意：这里使用了双引号包裹，防止路径中有空格
+          # 【关键修复】在脚本内重新获取输入参数，防止变量为空
           TARGET_FILE="${{ inputs.target_file }}"
           
+          # 检查文件是否有改动
           if git diff --quiet "$TARGET_FILE"; then
             echo "ℹ️ 没有检测到内容变化，无需提交。"
             exit 0
