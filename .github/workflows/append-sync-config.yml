@@ -39,13 +39,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # 使用 PAT_TOKEN 获取修改 workflow 的权限
           token: ${{ secrets.PAT_TOKEN }}
 
       - name: Append and Update Config
         env:
           TARGET_FILE: ${{ inputs.target_file }}
-          # 获取四个独立的输入参数
           INPUT_REPO: ${{ inputs.source_repo }}
           INPUT_BRANCH: ${{ inputs.source_branch }}
           INPUT_SRC_PATH: ${{ inputs.source_path }}
@@ -85,7 +83,6 @@ jobs:
               "dest_path": dest_path
           }
           
-          # 放入列表中，方便后续统一处理
           new_items = [new_item]
           print(f"📝 准备追加的配置: {json.dumps(new_item, ensure_ascii=False)}")
 
@@ -101,8 +98,13 @@ jobs:
               print("::error:: 未找到配置标记。请检查目标文件是否包含标记。")
               sys.exit(1)
 
-          # 6. 解析旧配置
+          # 6. 解析旧配置 (带容错处理)
           old_json_str = match.group(2).strip()
+          
+          # 【关键修复】移除 JSON 中最后一个元素后的多余逗号 (常见格式错误)
+          # 正则会匹配 , 后面跟着任意空白字符，然后是 ] 或 }
+          old_json_str = re.sub(r',\s*([\]\}])', r'\1', old_json_str)
+
           try:
               if old_json_str:
                   current_list = json.loads(old_json_str)
