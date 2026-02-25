@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       target_file:
-        description: '目标工作流文件路径 (例如: .github/workflows/sync.yml)'
+        description: '目标工作流文件路径'
         required: true
         default: '.github/workflows/sync.yml'
         type: string
@@ -25,11 +25,9 @@ jobs:
 
       - name: Append and Update Config
         env:
-          # 定义环境变量，供下面的 Python 脚本直接读取
           TARGET_FILE: ${{ inputs.target_file }}
           NEW_TASK_INPUT: ${{ inputs.new_task }}
         run: |
-          # 检查文件是否存在
           if [ ! -f "$TARGET_FILE" ]; then
             echo "::error:: 文件 $TARGET_FILE 不存在！"
             exit 1
@@ -37,76 +35,74 @@ jobs:
 
           echo "▶ 正在读取并合并配置..."
 
-          # 使用 Python 处理 JSON 合并与格式化
-          # 注意：python3 << 'EOF' ... EOF 是标准写法，脚本内直接使用 os.environ 读取变量
+          # 修复说明：调整了正则表达式，移除了对空格的强制要求，兼容性更强
           python3 << 'EOF'
           import os
           import re
           import json
           import sys
 
-          # 从环境变量获取配置
           file_path = os.environ.get('TARGET_FILE')
           new_input = os.environ.get('NEW_TASK_INPUT')
 
-          # 1. 读取文件内容
+          # 1. 读取文件
           with open(file_path, 'r', encoding='utf-8') as f:
               content = f.read()
 
-          # 2. 提取标记中间的内容
-          # 正则匹配：START标记 -> 中间内容 -> END标记
+          # 2. 正则匹配
+          # 修复点：结尾处的正则改为 '\s*# ===...'，不再要求引号后必须有空格
           pattern = r"(# === SYNC_CONFIG_START ===\s*SYNC_TASKS=')(.*?)(' \s*# === SYNC_CONFIG_END ===)"
           match = re.search(pattern, content, re.DOTALL)
 
           if not match:
-              print("::error:: 未找到配置标记。请确保目标文件包含 # === SYNC_CONFIG_START === 和 END 标记。")
+              print("::error:: 未找到配置标记。请检查标记格式是否如下：")
+              print("# === SYNC_CONFIG_START ===")
+              print("SYNC_TASKS='[...]'")
+              print("# === SYNC_CONFIG_END ===")
               sys.exit(1)
 
           # 3. 解析旧配置
           old_json_str = match.group(2).strip()
           try:
-              # 如果原配置为空或无效，初始化为空列表
               if old_json_str:
                   current_list = json.loads(old_json_str)
               else:
                   current_list = []
           except json.JSONDecodeError:
-              print("::error:: 原有配置 JSON 格式错误，无法解析。")
+              print(f"::error:: 原有配置 JSON 格式错误: {old_json_str}")
               sys.exit(1)
 
-          # 4. 解析新输入
+          # 4. 解析新配置
           try:
               new_data = json.loads(new_input)
-              # 如果输入的是单个对象，转为列表
               if isinstance(new_data, dict):
                   new_items = [new_data]
               else:
                   new_items = new_data
           except json.JSONDecodeError:
-              print("::error:: 输入的新配置 JSON 格式错误。")
+              print(f"::error:: 输入的新配置 JSON 格式错误: {new_input}")
               sys.exit(1)
 
-          # 5. 合并配置 (旧 + 新)
+          # 5. 合并
           merged_list = current_list + new_items
 
-          # 6. 格式化新 JSON
-          # 生成缩进格式，并计算原有缩进以保持代码整洁
+          # 6. 格式化并保持缩进
           merged_json_str = json.dumps(merged_list, indent=2, ensure_ascii=False)
           
-          # 计算缩进 (为了美观)
+          # 智能获取缩进（查找 SYNC_TASKS 所在行的缩进）
           prefix_line = match.group(1)
-          indent_match = re.search(r"\n([ \t]*)", prefix_line)
+          indent_match = re.search(r"\n([ \t]*)SYNC_TASKS=", prefix_line)
           base_indent = indent_match.group(1) if indent_match else "          "
 
-          # 给 JSON 每一行添加缩进（第一行除外）
+          # 给 JSON 每一行添加缩进
           json_lines = merged_json_str.split('\n')
+          # 第一行不缩进，从第二行开始缩进
           formatted_json = json_lines[0] + "\n" + "\n".join([base_indent + line for line in json_lines[1:]])
 
-          # 7. 替换内容
+          # 7. 替换并写回
           new_block = f"{match.group(1)}{formatted_json}{match.group(3)}"
           new_content = content[:match.start()] + new_block + content[match.end():]
 
-          # 8. 写回文件
           with open(file_path, 'w', encoding='utf-8') as f:
               f.write(new_content)
 
@@ -119,7 +115,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           if git diff --quiet; then
-            echo "ℹ️ 没有检测到内容变化（可能配置已存在），无需提交。"
+            echo "ℹ️ 没有检测到内容变化，无需提交。"
             exit 0
           fi
           
