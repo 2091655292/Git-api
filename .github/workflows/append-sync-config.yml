@@ -35,7 +35,6 @@ jobs:
 
           echo "▶ 正在读取并合并配置..."
 
-          # Python 脚本处理
           python3 << 'EOF'
           import os
           import re
@@ -50,7 +49,6 @@ jobs:
               content = f.read()
 
           # 2. 正则匹配
-          # 【关键修复】移除了单引号后的多余空格，改为 '\s*'，兼容换行和空格
           pattern = r"(# === SYNC_CONFIG_START ===\s*SYNC_TASKS=')(.*?)('\s*# === SYNC_CONFIG_END ===)"
           match = re.search(pattern, content, re.DOTALL)
 
@@ -110,7 +108,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          if git diff --quiet; then
+          # 【关键修复】直接使用表达式获取文件名，避免环境变量丢失
+          # 注意：这里使用了双引号包裹，防止路径中有空格
+          TARGET_FILE="${{ inputs.target_file }}"
+          
+          if git diff --quiet "$TARGET_FILE"; then
             echo "ℹ️ 没有检测到内容变化，无需提交。"
             exit 0
           fi
