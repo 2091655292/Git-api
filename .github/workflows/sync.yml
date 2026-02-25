@@ -5,6 +5,8 @@ permissions:
 
 on:
   workflow_dispatch: # 手动触发
+  schedule:
+    - cron: '0 0 * * *' # 每天 UTC 00:00 (北京时间 08:00) 自动执行
 
 jobs:
   sync_multi_sources:
