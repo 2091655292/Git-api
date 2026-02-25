@@ -37,7 +37,7 @@ jobs:
               "source_repo": "cmliu/edgetunnel",
               "source_branch": "main",
               "source_path": "_worker.js",
-              "dest_path": "edgetunnel/_worker.js"
+              "dest_path": "edgetunnel"
             }
           ]'
           # === SYNC_CONFIG_END ===
