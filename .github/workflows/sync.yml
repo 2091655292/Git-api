@@ -25,6 +25,7 @@ jobs:
           # source_path: 源路径 (文件夹或文件)
           # dest_path: 目标路径 (你仓库里的路径)
           # ==========================================================
+          # === SYNC_CONFIG_START ===
           SYNC_TASKS='[
             {
               "source_repo": "lingeringsound/adblock_auto",
@@ -33,6 +34,7 @@ jobs:
               "dest_path": "adblock_auto/Rules"
             }
             ]'
+          # === SYNC_CONFIG_END ===
           # ==========================================================
 
           # 配置 Git
