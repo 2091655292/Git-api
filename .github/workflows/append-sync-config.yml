@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # 【关键修复】使用 PAT_TOKEN 代替默认的 GITHUB_TOKEN，获取修改 workflow 的权限
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Append and Update Config
         env:
@@ -49,7 +52,6 @@ jobs:
               content = f.read()
 
           # 2. 正则匹配
-          # 兼容单引号后紧跟换行符或空格的情况
           pattern = r"(# === SYNC_CONFIG_START ===\s*SYNC_TASKS=')(.*?)('\s*# === SYNC_CONFIG_END ===)"
           match = re.search(pattern, content, re.DOTALL)
 
@@ -109,10 +111,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 【修复】直接在脚本中获取输入参数
           TARGET_FILE="${{ inputs.target_file }}"
           
-          # 检查文件是否有改动
           if git diff --quiet "$TARGET_FILE"; then
             echo "ℹ️ 没有检测到内容变化，无需提交。"
             exit 0
