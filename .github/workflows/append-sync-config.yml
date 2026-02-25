@@ -2,7 +2,6 @@ name: Append Sync Config
 
 permissions:
   contents: write
-  workflows: write  # 【关键修复】添加此权限，允许修改 workflow 文件
 
 on:
   workflow_dispatch:
@@ -110,7 +109,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 【关键修复】在脚本内重新获取输入参数，防止变量为空
+          # 【修复】直接在脚本中获取输入参数
           TARGET_FILE="${{ inputs.target_file }}"
           
           # 检查文件是否有改动
