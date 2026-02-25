@@ -32,8 +32,14 @@ jobs:
               "source_branch": "main",
               "source_path": "Rules",
               "dest_path": "adblock_auto/Rules"
+            },
+            {
+              "source_repo": "cmliu/edgetunnel",
+              "source_branch": "main",
+              "source_path": "_worker.js",
+              "dest_path": "edgetunnel/_worker.js"
             }
-            ]'
+          ]'
           # === SYNC_CONFIG_END ===
           # ==========================================================
 
