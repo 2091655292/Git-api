@@ -35,7 +35,7 @@ jobs:
 
           echo "▶ 正在读取并合并配置..."
 
-          # 修复说明：调整了正则表达式，移除了对空格的强制要求，兼容性更强
+          # Python 脚本处理
           python3 << 'EOF'
           import os
           import re
@@ -50,15 +50,12 @@ jobs:
               content = f.read()
 
           # 2. 正则匹配
-          # 修复点：结尾处的正则改为 '\s*# ===...'，不再要求引号后必须有空格
-          pattern = r"(# === SYNC_CONFIG_START ===\s*SYNC_TASKS=')(.*?)(' \s*# === SYNC_CONFIG_END ===)"
+          # 【关键修复】移除了单引号后的多余空格，改为 '\s*'，兼容换行和空格
+          pattern = r"(# === SYNC_CONFIG_START ===\s*SYNC_TASKS=')(.*?)('\s*# === SYNC_CONFIG_END ===)"
           match = re.search(pattern, content, re.DOTALL)
 
           if not match:
-              print("::error:: 未找到配置标记。请检查标记格式是否如下：")
-              print("# === SYNC_CONFIG_START ===")
-              print("SYNC_TASKS='[...]'")
-              print("# === SYNC_CONFIG_END ===")
+              print("::error:: 未找到配置标记。请检查文件格式是否正确。")
               sys.exit(1)
 
           # 3. 解析旧配置
@@ -89,14 +86,13 @@ jobs:
           # 6. 格式化并保持缩进
           merged_json_str = json.dumps(merged_list, indent=2, ensure_ascii=False)
           
-          # 智能获取缩进（查找 SYNC_TASKS 所在行的缩进）
+          # 智能获取缩进
           prefix_line = match.group(1)
           indent_match = re.search(r"\n([ \t]*)SYNC_TASKS=", prefix_line)
           base_indent = indent_match.group(1) if indent_match else "          "
 
           # 给 JSON 每一行添加缩进
           json_lines = merged_json_str.split('\n')
-          # 第一行不缩进，从第二行开始缩进
           formatted_json = json_lines[0] + "\n" + "\n".join([base_indent + line for line in json_lines[1:]])
 
           # 7. 替换并写回
