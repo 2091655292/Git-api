@@ -32,7 +32,7 @@ jobs:
               "source_branch": "main",
               "source_path": "Rules",
               "dest_path": "adblock_auto/Rules"
-            },
+            }
           ]'
           # === SYNC_CONFIG_END ===
           # ==========================================================
